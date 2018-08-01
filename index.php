@@ -20,6 +20,10 @@
             font-size: 9px;
         }
 
+        ul.tree {
+            margin-bottom: 1em;
+        }
+
         ul.tree li {
             list-style-type: none;
             position: relative;
@@ -76,6 +80,13 @@
 
 <?php
 
+function human_memsize($bytes, $decimals = 2) {
+    $size = array('B','kB','MB','GB','TB','PB','EB','ZB','YB');
+    $factor = floor((strlen($bytes) - 1) / 3);
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$size[$factor];
+}
+
+
 $file = fopen('massif.out.5055', 'r');
 $stacktrace_keys = array();
 $snapshots = array();
@@ -119,35 +130,39 @@ while (($line = fgets($file)) !== false) {
         }
     }
 
-    if(preg_match('/^([ ]*)n([0-9]+): ([0-9]+) (.*)$/', $line, $matches)) {
+    if(preg_match('/^([ ]*)n([0-9]+): ([0-9]+) (0x[0-9A-Z]+: )?(.*)$/', $line, $matches)) {
         $newlevel = strlen($matches[1]);
         if($newlevel > $level) {
             assert($newlevel - $level == 1);
 
             if($newlevel == 0) {
-                echo('<ul class="tree" id="snapshot_'.$detailed_counter.'"><li>');
+                echo('<ul class="tree" id="snapshot_'.$detailed_counter.'">');
                 $detailed_counter++;
             }
             else
-                echo('<ul><li>');
+                echo('<ul>');
 
             $level++;
 
-            echo '<a href="#">'.$matches[4].'</a>';
         }
         else if($newlevel < $level) {
-            assert($level - $newlevel == 1);
-
-            echo('</li></ul>');
-            $level--;
-
-            echo('<li><a href="#">'.$matches[4].'</a>');
+            while($level > $newlevel) {
+                echo('</li></ul>');
+                $level--;
+            }
         }
         else {
             assert($level == $newlevel);
 
-            echo('</li><li><a href="#">'.$matches[4].'</a>');
+            echo('</li>');
         }
+
+        if($level == 0)
+            echo('<li class="open">');
+        else
+            echo("<li>");
+
+        echo '<a href="#">'.human_memsize($matches[3]).' '.$matches[5].'</a>';
 
     }
 
@@ -195,7 +210,6 @@ fclose($file);
         return 'rgb('.($elem[0]*255).",".($elem[1]*255).",".($elem[2]*255).")";
         // return 'rgb(0,0,0)';
     }
-
 ?>
 
     <script>
@@ -244,7 +258,7 @@ fclose($file);
                     text: 'Massif detailed output graph'
                 },
                 tooltips: {
-                    mode: 'index',
+                    mode: 'none',
                 },
                 hover: {
                     mode: 'index'
@@ -340,7 +354,7 @@ fclose($file);
                     text: 'Massif output graph'
                 },
                 tooltips: {
-                    mode: 'index',
+                    mode: 'none',
                 },
                 hover: {
                     mode: 'index'
