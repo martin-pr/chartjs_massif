@@ -240,9 +240,9 @@ fclose($file);
                     foreach($snapshots as $snapshot)
                         if(array_key_exists('stacktrace', $snapshot)) {
                             if(array_key_exists($key, $snapshot['stacktrace']))
-                                echo($snapshot['stacktrace'][$key].',');
+                                echo("{x:".$snapshot["time"].",y:".$snapshot['stacktrace'][$key].'},');
                             else
-                                echo("0,");
+                                echo("{x:".$snapshot["time"].",y:0},");
                         }
 
                     echo("]");
