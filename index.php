@@ -14,18 +14,65 @@
             -webkit-user-select: none;
             -ms-user-select: none;
         }
+
+        html {
+            font-family: sans-serif;
+            font-size: 9px;
+        }
+
+        ul.tree li {
+            list-style-type: none;
+            position: relative;
+            white-space: pre;
+        }
+
+        ul.tree li ul {
+            display: none;
+        }
+
+        ul.tree li.open > ul {
+            display: block;
+        }
+
+        ul.tree li a {
+            color: black;
+            text-decoration: none;
+        }
+
+        ul.tree li a:hover {
+            background-color: #ccc;
+        }
+
+        ul.tree li a:before {
+            height: 1em;
+            padding:0 .1em;
+            font-size: .8em;
+            display: block;
+            position: absolute;
+            left: -1.3em;
+            top: .2em;
+        }
+
+        ul.tree li > a:not(:last-child):before {
+            content: '+';
+        }
+
+        ul.tree li.open > a:not(:last-child):before {
+            content: '-';
+        }
+
+        ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0 0 0 1em;
+        }
+
     </style>
 </head>
 
 <body>
 
-<div style="width:75%;">
-    <canvas id="canvas_overall"></canvas>
-</div>
-
-<div style="width:75%;">
-    <canvas id="canvas_detailed"></canvas>
-</div>
+<div style="float: right; width: 25%; ">
 
 <?php
 
@@ -33,9 +80,17 @@ $file = fopen('massif.out.5055', 'r');
 $stacktrace_keys = array();
 $snapshots = array();
 
+$level = -1;
+$detailed_counter = 0;
+
 while (($line = fgets($file)) !== false) {
-    if(preg_match('/^snapshot=([0-9]+)$/', $line, $matches))
+    if(preg_match('/^snapshot=([0-9]+)$/', $line, $matches)) {
         array_push($snapshots, array());
+        while($level >= 0) {
+            echo('</li></ul>');
+            $level = $level - 1;
+        }
+    }
 
     else if(preg_match('/^time=([0-9]+)$/', $line, $matches))
         $snapshots[count($snapshots)-1]['time'] = $matches[1];
@@ -52,9 +107,6 @@ while (($line = fgets($file)) !== false) {
     else if(preg_match('/^heap_tree=([a-z]+)$/', $line, $matches))
         $snapshots[count($snapshots)-1]['heap_tree'] = $matches[1];
 
-    // else if(preg_match('/^[ ]*n([0-9]+): ([0-9]+) (.*)$/', $line, $matches))
-    //     print_r($matches);
-
     // only first-level stacktraces for the graph
     else if(preg_match('/^ n([0-9]+): ([0-9]+) (.*)$/', $line, $matches)) {
         if(strpos($matches[3], 'all below massif') === false) {
@@ -67,11 +119,54 @@ while (($line = fgets($file)) !== false) {
         }
     }
 
+    if(preg_match('/^([ ]*)n([0-9]+): ([0-9]+) (.*)$/', $line, $matches)) {
+        $newlevel = strlen($matches[1]);
+        if($newlevel > $level) {
+            assert($newlevel - $level == 1);
+
+            if($newlevel == 0) {
+                echo('<ul class="tree" id="snapshot_'.$detailed_counter.'"><li>');
+                $detailed_counter++;
+            }
+            else
+                echo('<ul><li>');
+
+            $level++;
+
+            echo '<a href="#">'.$matches[4].'</a>';
+        }
+        else if($newlevel < $level) {
+            assert($level - $newlevel == 1);
+
+            echo('</li></ul>');
+            $level--;
+
+            echo('<li><a href="#">'.$matches[4].'</a>');
+        }
+        else {
+            assert($level == $newlevel);
+
+            echo('</li><li><a href="#">'.$matches[4].'</a>');
+        }
+
+    }
+
 }
 
 fclose($file);
 
-/////////////////////////////////
+?>
+</div>
+
+<div style="width:75%;">
+    <canvas id="canvas_detailed"></canvas>
+</div>
+
+<div style="width:75%;">
+    <canvas id="canvas_overall"></canvas>
+</div>
+
+<?php
 
 //echo('<script>');
 
@@ -278,8 +373,33 @@ fclose($file);
             document.getElementById("canvas_detailed").onclick = function(evt){
                 var activePoints = window.myLineDetailed.getElementsAtEvent(evt);
                 // use _datasetIndex and _index from each element of the activePoints array
-                alert(activePoints);
+                // alert('snapshot_' + activePoints[0]._index.toString());
+
+                var sts = document.querySelectorAll('ul.tree');
+                for(var i = 0; i < sts.length; i++)
+                    sts[i].style.display = 'none';
+
+                var current = document.querySelector('#snapshot_' + activePoints[0]._index.toString());
+                current.style.display = 'initial';
             };
+
+
+            var tree = document.querySelectorAll('ul.tree a:not(:last-child)');
+            for(var i = 0; i < tree.length; i++){
+                tree[i].addEventListener('click', function(e) {
+                    var parent = e.target.parentElement;
+                    var classList = parent.classList;
+                    if(classList.contains("open")) {
+                        classList.remove('open');
+                        var opensubs = parent.querySelectorAll(':scope .open');
+                        for(var i = 0; i < opensubs.length; i++){
+                            opensubs[i].classList.remove('open');
+                        }
+                    } else {
+                        classList.add('open');
+                    }
+                });
+            }
         };
 
 
