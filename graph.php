@@ -207,7 +207,7 @@ fclose($file);
         $elem[1] = $elems[intval(floor($v))][1] * (1 - $weight) + $elems[intval(ceil($v))][1] * ($weight);
         $elem[2] = $elems[intval(floor($v))][2] * (1 - $weight) + $elems[intval(ceil($v))][2] * ($weight);
 
-        return 'rgb('.($elem[0]*255).",".($elem[1]*255).",".($elem[2]*255).")";
+        return 'rgb('.intval($elem[0]*255).",".intval($elem[1]*255).",".intval($elem[2]*255).")";
         // return 'rgb(0,0,0)';
     }
 ?>
@@ -258,7 +258,7 @@ fclose($file);
                     text: 'Massif detailed output graph'
                 },
                 tooltips: {
-                    mode: 'none',
+                    mode: 'index',
                 },
                 hover: {
                     mode: 'index'
